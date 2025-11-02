@@ -134,7 +134,10 @@
         responseBox.textContent = "Đang đọc trạng thái bếp...";
 
         try {
-            const res = await fetch(`${API_BASE}?action=get&pin=${VIRTUAL_PIN}`);
+           const res = await fetch(`/api?action=update&pin=${VIRTUAL_PIN}&value=${newState}`);
+
+
+            
             const value = await res.text();
             const isOn = value.trim() === "1";
 
@@ -190,3 +193,4 @@
 </script>
 </body>
 </html>
+
