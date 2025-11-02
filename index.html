@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aptomat Web Control (Blynk)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            padding-top: 40px;
+        }
+        h2 { margin-bottom: 20px; font-weight: bold; font-size: 1.75rem; }
+        .control-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+        #btn {
+            font-size: 24px;
+            padding: 20px 60px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+        .on { background-color: #00c853; }
+        .off { background-color: #555; }
+        #checkBtn {
+            background-color: #2196f3;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        #statusSection { margin-top: 10px; }
+        #circle {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+            background-color: #555;
+            box-shadow: 0 0 8px #222;
+            transition: all 0.3s;
+        }
+        
+
+         .circle-on { background-color: #00c853 !important; box-shadow: 0 0 15px #00e676; }
+  .circle-off { background-color: #333 !important; box-shadow: 0 0 5px #111; }
+.circle-off {
+  background-color: #333 ;
+  box-shadow: 0 0 5px #111 ;
+}
+
+
+
+        #bepEmoji {
+            font-size: 150px; /* Thay thế hình ảnh bằng emoji lớn */
+            display: block;
+            margin: 25px auto 0;
+            transition: transform 0.5s;
+        }
+        #responseBox {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #444;
+            width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: bold;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="max-w-xl mx-auto p-4">
+        <h2 class="text-white">⚡ Aptomat Web Control</h2>
+
+        <!-- Nút Điều khiển và Nút Trạng thái -->
+        <div class="control-section">
+            <button id="checkBtn" onclick="getStatus()">Xem trạng thái Bếp</button>
+            <button id="btn" class="off" onclick="toggle()">OFF</button>
+        </div>
+
+        <!-- Trạng thái vòng tròn + chữ -->
+        <div id="statusSection">
+            <span id="circle" class="circle-off"></span>
+            <span id="statusText">CB OFF</span> 
+        </div>
+
+        <!-- Thay thế hình ảnh bếp bằng Emoji -->
+        <div id="bepEmoji">❄️</div>
+
+        <div id="responseBox">Phản hồi sẽ hiển thị ở đây</div>
+    </div>
+
+<script>
+    // ** LƯU Ý: VUI LÒNG DÁN BLYNK AUTH TOKEN CỦA BẠN VÀO ĐÂY **
+    const TOKEN = "m8zkh8ZZUHvhBQBlan2yvT8ZYdNcaH0u"; 
+    const API_BASE = "https://blynk.cloud/external/api";
+    const VIRTUAL_PIN = 'V1'; 
+
+    // Biến để lưu trạng thái hiện tại của nút điều khiển (0 hoặc 1)
+    let currentCommandState = 0; 
+
+    // 🔘 Nhấn nút ON/OFF (toggle)
+    async function toggle() {
+        const btn = document.getElementById("btn");
+        // Lệnh mới là đảo ngược trạng thái hiện tại của nút (Nếu là OFF -> lệnh là 1)
+        const newState = currentCommandState === 0 ? 1 : 0; 
+        const responseBox = document.getElementById("responseBox");
+
+        responseBox.textContent = "Đang gửi lệnh...";
+
+        try {
+            // Gửi lệnh lên V1
+            const res = await fetch(`${API_BASE}/update?token=${TOKEN}&${VIRTUAL_PIN}=${newState}`);
+
+            if (res.ok) {
+                responseBox.textContent = `✅ Lệnh ${newState === 1 ? 'ON' : 'OFF'} thành công (200 OK)`;
+                
+                // Cập nhật ngay trạng thái nút điều khiển trên UI (dùng cho lần nhấn tiếp theo)
+                syncButtonUI(newState === 1); 
+
+            } else {
+                responseBox.textContent = `⚠ Không hợp lệ (Lỗi ${res.status})`;
+            }
+        } catch (e) {
+            responseBox.textContent = "❌ Lỗi kết nối mạng!";
+            console.error(e);
+        }
+    }
+
+    // 🔄 Khi nhấn “Xem trạng thái Bếp”
+    async function getStatus() {
+        const responseBox = document.getElementById("responseBox");
+        responseBox.textContent = "Đang đọc trạng thái bếp...";
+
+        try {
+            // Đọc giá trị V1 (Giá trị do ESP gửi lên)
+            const res = await fetch(`${API_BASE}/get?token=${TOKEN}&${VIRTUAL_PIN}`);
+            const value = await res.text();
+            
+            // Xử lý giá trị nhận được
+            const isOn = value.trim() === "1";
+            
+            // 1. Cập nhật vòng tròn và chữ
+            updateStatus(isOn); 
+            
+            // 2. Cập nhật Emoji Bếp (Thay thế hình ảnh)
+            updateImage(isOn);
+
+            // 3. Đồng bộ trạng thái nút Điều khiển (Tùy chọn)
+            const btn = document.getElementById("btn");
+            const btnIsOn = currentCommandState === 1; // Trạng thái lệnh hiện tại
+            
+            // Chỉ cập nhật nút nếu trạng thái đọc được khác trạng thái nút hiện tại
+            if (isOn !== btnIsOn) { 
+                syncButtonUI(isOn);
+            }
+            
+            responseBox.textContent = `Đọc thành công: Bếp đang ${isOn ? 'BẬT' : 'TẮT'} (Giá trị V1: ${value.trim()})`;
+
+        } catch (e) {
+            responseBox.textContent = "❌ Lỗi đọc trạng thái! ESP có đang online không?";
+            console.error("Lỗi đọc trạng thái:", e);
+        }
+    }
+
+    // ✅ Đồng bộ trạng thái nút sau khi gửi lệnh hoặc đọc trạng thái
+    function syncButtonUI(isOn) {
+        // Cập nhật biến trạng thái lệnh
+        currentCommandState = isOn ? 1 : 0; 
+
+        const btn = document.getElementById("btn");
+        if (isOn) {
+            btn.textContent = "ON";
+            btn.classList.remove("off");
+            btn.classList.add("on");
+        } else {
+            btn.textContent = "OFF";
+            btn.classList.remove("on");
+            btn.classList.add("off");
+        }
+    }
+
+    // 🔵 Cập nhật vòng tròn + chữ (Trạng thái Vật Lý thực tế)
+    function updateStatus(isOn) {
+         const circle = document.getElementById("circle");
+        const text = document.getElementById("statusText");
+
+         circle.classList.remove("circle-on","circle-off");
+  circle.classList.add(isOn ? "circle-on" : "circle-off");
+        
+        text.textContent = isOn ? "CB ON (Bếp đang nấu 🔥)" : "CB OFF (Bếp đã tắt ❄️)";
+    }
+
+    // 🟠 Cập nhật biểu tượng Bếp (Thay thế cho bep_on.jpg / bep_off.jpg)
+    function updateImage(isOn) {
+        const emojiDiv = document.getElementById("bepEmoji");
+        emojiDiv.textContent = isOn ? "🔥" : "❄️"; 
+        emojiDiv.style.transform = isOn ? 'scale(1.1)' : 'scale(1.0)';
+    }
+
+    // Khởi tạo trạng thái nút ban đầu (Chỉ cho giao diện)
+    document.addEventListener('DOMContentLoaded', () => {
+        syncButtonUI(false); // Ban đầu đặt nút điều khiển là OFF
+    });
+</script>
+</body>
+</html>
