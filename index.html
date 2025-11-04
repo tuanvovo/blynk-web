@@ -161,37 +161,42 @@
     }
 
     // 🔄 Đọc trạng thái hiện tại từ Blynk qua Worker
-    async function getStatus() {
-        const responseBox = document.getElementById("responseBox");
-        responseBox.textContent = `Đang tải trạng thái hiện tại...`;
-        responseBox.style.color = "gray";
 
-        try {
-            // GỌI WORKER AN TOÀN để đọc giá trị
-            const res = await fetch(`${WORKER_URL}?action=get&pin=${VIRTUAL_PIN}`);
+    // 🔄 Đọc trạng thái hiện tại từ Blynk qua Worker
+async function getStatus() {
+    const responseBox = document.getElementById("responseBox");
+    responseBox.textContent = `Đang tải trạng thái hiện tại...`;
+    responseBox.style.color = "gray";
+
+    try {
+        // GỌI WORKER AN TOÀN để đọc giá trị (action=get)
+        const res = await fetch(`${WORKER_URL}?action=get&pin=${VIRTUAL_PIN}`);
+        
+        if (res.ok) {
+            const value = await res.text();
             
-            if (res.ok) {
-                const value = await res.text();
-                const state = parseInt(value.trim()); // Giá trị từ Blynk: '0' hoặc '1'
-                
-                if (!isNaN(state)) {
-                    // Cập nhật giao diện theo trạng thái nhận được
-                    updateUI(state);
-                    responseBox.textContent = `✅ Trạng thái Bếp: ${state === 1 ? 'ON (Đang nấu)' : 'OFF (Đã tắt)'}`;
-                    responseBox.style.color = "darkblue";
-                } else {
-                     responseBox.textContent = `❌ Lỗi dữ liệu Blynk.`;
-                     responseBox.style.color = "red";
-                }
-            } else {
-                responseBox.textContent = `❌ Lỗi đọc trạng thái: ${res.status}`;
-                responseBox.style.color = "red";
-            }
-        } catch (error) {
-            responseBox.textContent = `⚠️ Lỗi kết nối: Không thể gọi Worker.`;
-            responseBox.style.color = "orange";
+            // ⭐ BƯỚC KHẮC PHỤC QUAN TRỌNG: CHỈ CHẤP NHẬN '1' HOẶC '0'
+            // Chuyển giá trị nhận được thành 1 nếu là '1', còn lại là 0.
+            const state = (value.trim() === '1') ? 1 : 0; 
+            
+            // Cập nhật giao diện theo trạng thái nhận được
+            updateUI(state);
+            responseBox.textContent = `✅ Trạng thái Bếp: ${state === 1 ? 'ON (Đang nấu)' : 'OFF (Đã tắt)'}`;
+            responseBox.style.color = "darkblue";
+        } else {
+            responseBox.textContent = `❌ Lỗi đọc trạng thái: ${res.status}`;
+            responseBox.style.color = "red";
         }
+    } catch (error) {
+        responseBox.textContent = `⚠️ Lỗi kết nối: Không thể gọi Worker.`;
+        responseBox.style.color = "orange";
     }
+}
+
+
+
+
+        
 
     // Khởi tạo và Gắn sự kiện khi trang tải xong
     document.addEventListener('DOMContentLoaded', () => {
@@ -210,5 +215,6 @@
     
 </body>
 </html>
+
 
 
