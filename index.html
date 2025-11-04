@@ -99,98 +99,116 @@
         <div id="responseBox">Phản hồi sẽ hiển thị ở đây</div>
     </div>
 
-<script>
-    // 🔒 Token đã được ẩn — tất cả request qua /api trung gian trên GitHub
-    const API_BASE = "/api";
-    const VIRTUAL_PIN = "V1"; 
-    let currentCommandState = 0; 
 
-    // 🔘 Nhấn nút ON/OFF
-    async function toggle() {
+
+
+    <script>
+    // 🌐 Cấu hình Proxy Worker An toàn
+    const WORKER_URL = 'https://blynk-token-proxy.tanthanhlttb123.workers.dev'; 
+    const VIRTUAL_PIN = "V1";
+    let currentCommandState = 0; // Trạng thái 0 hoặc 1
+
+    // 🔄 Hàm tổng hợp cập nhật giao diện
+    function updateUI(state) {
+        const isOn = state === 1;
+        
+        // Cập nhật trạng thái và nút
+        currentCommandState = state;
         const btn = document.getElementById("btn");
-        const newState = currentCommandState === 0 ? 1 : 0; 
-        const responseBox = document.getElementById("responseBox");
+        btn.textContent = isOn ? "TẮT" : "MỞ"; // Nút luôn hiển thị hành động ngược lại
+        btn.classList.toggle("on", isOn);
+        btn.classList.toggle("off", !isOn);
 
-        responseBox.textContent = "Đang gửi lệnh...";
-
-        try {
-            const res = await fetch(`${API_BASE}?action=update&pin=${VIRTUAL_PIN}&value=${newState}`);
-
-            if (res.ok) {
-                responseBox.textContent = `✅ Lệnh ${newState === 1 ? 'ON' : 'OFF'} thành công`;
-                syncButtonUI(newState === 1);
-            } else {
-                responseBox.textContent = `⚠ Lỗi ${res.status}`;
-            }
-        } catch (e) {
-            responseBox.textContent = "❌ Lỗi kết nối mạng!";
-            console.error(e);
-        }
-    }
-
-    // 🔄 Đọc trạng thái
-    async function getStatus() {
-        const responseBox = document.getElementById("responseBox");
-        responseBox.textContent = "Đang đọc trạng thái bếp...";
-
-        try {
-           const res = await fetch(`/api?action=update&pin=${VIRTUAL_PIN}&value=${newState}`);
-
-
-            
-            const value = await res.text();
-            const isOn = value.trim() === "1";
-
-            updateStatus(isOn); 
-            updateImage(isOn);
-
-            if (isOn !== (currentCommandState === 1)) {
-                syncButtonUI(isOn);
-            }
-
-            responseBox.textContent = `Đọc thành công: Bếp đang ${isOn ? 'BẬT 🔥' : 'TẮT ❄️'}`;
-        } catch (e) {
-            responseBox.textContent = "❌ Lỗi đọc trạng thái!";
-            console.error(e);
-        }
-    }
-
-    // ✅ Đồng bộ giao diện nút
-    function syncButtonUI(isOn) {
-        currentCommandState = isOn ? 1 : 0; 
-        const btn = document.getElementById("btn");
-        if (isOn) {
-            btn.textContent = "ON";
-            btn.classList.remove("off");
-            btn.classList.add("on");
-        } else {
-            btn.textContent = "OFF";
-            btn.classList.remove("on");
-            btn.classList.add("off");
-        }
-    }
-
-    // 🔵 Cập nhật vòng tròn + chữ
-    function updateStatus(isOn) {
+        // Cập nhật Vòng tròn + Chữ
         const circle = document.getElementById("circle");
         const text = document.getElementById("statusText");
-        circle.classList.remove("circle-on","circle-off");
-        circle.classList.add(isOn ? "circle-on" : "circle-off");
+        circle.classList.toggle("circle-on", isOn);
+        circle.classList.toggle("circle-off", !isOn);
         text.textContent = isOn ? "CB ON (Bếp đang nấu 🔥)" : "CB OFF (Bếp đã tắt ❄️)";
-    }
 
-    // 🟠 Cập nhật emoji
-    function updateImage(isOn) {
+        // Cập nhật Emoji
         const emojiDiv = document.getElementById("bepEmoji");
         emojiDiv.textContent = isOn ? "🔥" : "❄️"; 
         emojiDiv.style.transform = isOn ? 'scale(1.1)' : 'scale(1.0)';
     }
 
-    // Khởi tạo
+    // 🔘 Gửi lệnh ON/OFF qua Worker
+    async function toggle() {
+        const responseBox = document.getElementById("responseBox");
+        // Đảo ngược trạng thái hiện tại để gửi lệnh
+        const newState = currentCommandState === 0 ? 1 : 0; 
+
+        try {
+            // GỌI WORKER AN TOÀN (đã chứa Token Blynk)
+            const res = await fetch(`${WORKER_URL}?action=update&pin=${VIRTUAL_PIN}&value=${newState}`);
+            
+            if (res.ok) {
+                // Thành công: Cập nhật UI ngay lập tức
+                updateUI(newState);
+                responseBox.textContent = `✅ Gửi lệnh thành công. Đang chờ thiết bị phản hồi.`;
+                responseBox.style.color = "green";
+            } else {
+                // Lỗi: Worker hoặc Blynk Cloud trả lỗi
+                const errorText = await res.text();
+                responseBox.textContent = `❌ Lỗi Worker/Blynk: ${res.status}. ${errorText}`;
+                responseBox.style.color = "red";
+            }
+        } catch (error) {
+            // Lỗi kết nối
+            responseBox.textContent = `⚠️ Lỗi kết nối Worker: ${error.message}`;
+            responseBox.style.color = "orange";
+        }
+    }
+
+    // 🔄 Đọc trạng thái hiện tại từ Blynk qua Worker
+    async function getStatus() {
+        const responseBox = document.getElementById("responseBox");
+        responseBox.textContent = `Đang tải trạng thái hiện tại...`;
+        responseBox.style.color = "gray";
+
+        try {
+            // GỌI WORKER AN TOÀN để đọc giá trị
+            const res = await fetch(`${WORKER_URL}?action=get&pin=${VIRTUAL_PIN}`);
+            
+            if (res.ok) {
+                const value = await res.text();
+                const state = parseInt(value.trim()); // Giá trị từ Blynk: '0' hoặc '1'
+                
+                if (!isNaN(state)) {
+                    // Cập nhật giao diện theo trạng thái nhận được
+                    updateUI(state);
+                    responseBox.textContent = `✅ Trạng thái Bếp: ${state === 1 ? 'ON (Đang nấu)' : 'OFF (Đã tắt)'}`;
+                    responseBox.style.color = "darkblue";
+                } else {
+                     responseBox.textContent = `❌ Lỗi dữ liệu Blynk.`;
+                     responseBox.style.color = "red";
+                }
+            } else {
+                responseBox.textContent = `❌ Lỗi đọc trạng thái: ${res.status}`;
+                responseBox.style.color = "red";
+            }
+        } catch (error) {
+            responseBox.textContent = `⚠️ Lỗi kết nối: Không thể gọi Worker.`;
+            responseBox.style.color = "orange";
+        }
+    }
+
+    // Khởi tạo và Gắn sự kiện khi trang tải xong
     document.addEventListener('DOMContentLoaded', () => {
-        syncButtonUI(false);
+        // Tải trạng thái ban đầu khi trang vừa mở
+        getStatus(); 
+        
+        // Gắn sự kiện cho nút ON/OFF
+        document.getElementById("btn").addEventListener('click', toggle);
+        
+        // Gắn sự kiện cho nút Kiểm tra trạng thái
+        document.getElementById("checkBtn").addEventListener('click', getStatus);
     });
 </script>
+
+
+    
 </body>
 </html>
+
 
