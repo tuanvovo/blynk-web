@@ -3,36 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Test ON/OFF ESP</title>
+<title>Demo 2 nút ON/OFF</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 50px; background: #f0f0f0; }
+  button { font-size: 24px; padding: 20px 50px; margin: 20px; border: none; border-radius: 10px; cursor: pointer; }
+  #btn-on { background-color: #22c55e; color: white; }
+  #btn-off { background-color: #ef4444; color: white; }
+  #status { font-size: 28px; margin-top: 30px; }
+</style>
 </head>
 <body>
-<h2>Test ESP ON/OFF</h2>
-<button id="on">ON</button>
-<button id="off">OFF</button>
+
+<h1>Demo 2 nút ON/OFF ESP</h1>
+
+<button id="btn-on">ON</button>
+<button id="btn-off">OFF</button>
+
+<div id="status">Trạng thái: OFF</div>
 
 <script>
 const WORKER_URL = 'https://blynk-token-proxy.tanthanhlttb123.workers.dev';
 const VIRTUAL_PIN = 'V1';
-let currentState = null;
 
-async function sendCommand(state) {
-    if (state === currentState) return; // Tránh gửi lại cùng trạng thái
-    currentState = state;
-    const value = state ? 1 : 0;
-
-    try {
-        const res = await fetch(`${WORKER_URL}?pin=${VIRTUAL_PIN}&value=${value}`);
-        if (res.ok) console.log(`✅ Lệnh ${state ? 'ON' : 'OFF'} đã gửi thành công`);
-        else console.error('❌ Gửi lệnh thất bại:', res.status);
-    } catch (e) {
-        console.error('⚠️ Lỗi kết nối:', e);
-    }
+function sendCommand(state) {
+    fetch(`${WORKER_URL}?pin=${VIRTUAL_PIN}&value=${state ? 1 : 0}`)
+        .then(res => res.json())
+        .then(data => {
+            console.log('ESP phản hồi:', data);
+            document.getElementById('status').innerText = 'Trạng thái: ' + (state ? 'ON' : 'OFF');
+        })
+        .catch(err => console.error('Lỗi gửi lệnh:', err));
 }
 
-document.getElementById('on').onclick = () => sendCommand(true);
-document.getElementById('off').onclick = () => sendCommand(false);
+document.getElementById('btn-on').addEventListener('click', () => sendCommand(true));
+document.getElementById('btn-off').addEventListener('click', () => sendCommand(false));
 </script>
+
 </body>
 </html>
+
 
 
