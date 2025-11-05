@@ -1,44 +1,218 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Demo 2 nút ON/OFF</title>
-<style>
-  body { font-family: sans-serif; text-align: center; margin-top: 50px; background: #f0f0f0; }
-  button { font-size: 24px; padding: 20px 50px; margin: 20px; border: none; border-radius: 10px; cursor: pointer; }
-  #btn-on { background-color: #22c55e; color: white; }
-  #btn-off { background-color: #ef4444; color: white; }
-  #status { font-size: 28px; margin-top: 30px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aptomat Web Control (Ảnh đã căn chỉnh)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            padding-top: 40px;
+        }
+        h2 { margin-bottom: 20px; font-weight: bold; font-size: 1.75rem; }
+        .control-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+        #btn {
+            font-size: 24px;
+            padding: 20px 60px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+        .on { background-color: #00c853; }
+        .off { background-color: #555; }
+        #checkBtn {
+            background-color: #2196f3;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            padding: 12px 25px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        #statusSection { margin-top: 10px; }
+        #circle {
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+            background-color: #555;
+            box-shadow: 0 0 8px #222;
+            transition: all 0.3s;
+        }
+        .circle-on { background-color: #00c853 !important; box-shadow: 0 0 15px #00e676; }
+        .circle-off { background-color: #333 !important; box-shadow: 0 0 5px #111; }
+      
+        
+
+
+
+
+      /* ⭐ VÙNG CSS HÌNH ẢNH SẠCH SẼ (KHÔNG CHỈNH SỬA VỊ TRÍ) ⭐ */
+#imageContainer {
+    position: relative; 
+    width: 300px; /* Cần điều chỉnh theo kích thước ảnh thật */
+    height: 300px; /* Cần điều chỉnh theo kích thước ảnh thật */
+    margin: 25px auto 0;
+}
+#offImage, #onImage {
+    position: absolute; /* Giữ thuộc tính này để chồng ảnh */
+    top: 0; 
+    left: 0;
+    width: 100%; 
+    transition: opacity 0.3s;
+}
+#onImage {
+     opacity: 0; /* Ảnh ON mặc định ẩn */
+     /* ĐÃ BỎ các thuộc tính left và top */
+}
+/* End - VÙNG CSS HÌNH ẢNH SẠCH SẼ */
+        
+
+
+
+
+
+
+        #responseBox {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #444;
+            width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+            font-weight: bold;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
+    <div class="max-w-xl mx-auto p-4">
+        <h2 class="text-white">⚡ Aptomat Web Control (Ảnh)</h2>
 
-<h1>Demo 2 nút ON/OFF ESP</h1>
+        <div class="control-section">
+            <button id="checkBtn" onclick="getStatus()">Xem trạng thái Bếp</button>
+            <button id="btn" class="off" onclick="toggle()">MỞ</button>
+        </div>
 
-<button id="btn-on">ON</button>
-<button id="btn-off">OFF</button>
+        <div id="statusSection">
+            <span id="circle" class="circle-off"></span>
+            <span id="statusText">CB OFF</span>
+         </div>
 
-<div id="status">Trạng thái: OFF</div>
+        <div id="imageContainer">
+            <img id="offImage" src="bep_off.jpg" alt="Bếp Tắt">
+            <img id="onImage" src="bep_on.jpg" alt="Bếp Bật" style="opacity: 0;">
+        </div>
+        <div id="responseBox">Phản hồi sẽ hiển thị ở đây</div>
+    </div>
 
-<script>
-const WORKER_URL = 'https://blynk-token-proxy.tanthanhlttb123.workers.dev';
-const VIRTUAL_PIN = 'V1';
+    <script>
+    const WORKER_URL = 'https://blynk-token-proxy.tanthanhlttb123.workers.dev'; 
+    const VIRTUAL_PIN = "V1";
+    let currentCommandState = 0; 
+    
+    // 🔄 Hàm tổng hợp cập nhật giao diện
+    function updateUI(state) {
+        const isOn = state === 1;
 
-function sendCommand(state) {
-    fetch(`${WORKER_URL}?pin=${VIRTUAL_PIN}&value=${state ? 1 : 0}`)
-        .then(res => res.json())
-        .then(data => {
-            console.log('ESP phản hồi:', data);
-            document.getElementById('status').innerText = 'Trạng thái: ' + (state ? 'ON' : 'OFF');
-        })
-        .catch(err => console.error('Lỗi gửi lệnh:', err));
-}
+        currentCommandState = state;
+        const btn = document.getElementById("btn");
+        btn.textContent = isOn ? "TẮT" : "MỞ"; 
+        btn.classList.toggle("on", isOn);
+        btn.classList.toggle("off", !isOn);
 
-document.getElementById('btn-on').addEventListener('click', () => sendCommand(true));
-document.getElementById('btn-off').addEventListener('click', () => sendCommand(false));
-</script>
+        // Cập nhật Vòng tròn + Chữ
+        const circle = document.getElementById("circle");
+        const text = document.getElementById("statusText");
+        circle.classList.toggle("circle-on", isOn);
+        circle.classList.toggle("circle-off", !isOn);
+        text.textContent = isOn ? "CB ON (Bếp đang nấu)" : "CB OFF (Bếp đã tắt)";
 
+        // ⭐ Cập nhật Hình Ảnh (Sử dụng opacity) ⭐
+        const offImg = document.getElementById("offImage");
+        const onImg = document.getElementById("onImage");
+        
+        offImg.style.opacity = isOn ? 0 : 1; 
+        onImg.style.opacity = isOn ? 1 : 0;
+        // End - Cập nhật Hình Ảnh
+    }
+
+    // 🔘 Gửi lệnh ON/OFF qua Worker
+    async function toggle() {
+        const responseBox = document.getElementById("responseBox");
+        const newState = currentCommandState === 0 ? 1 : 0; 
+        
+        try {
+            const res = await fetch(`${WORKER_URL}?action=update&pin=${VIRTUAL_PIN}&value=${newState}`);
+                        
+            if (res.ok) {
+                updateUI(newState);
+                responseBox.textContent = `✅ Gửi lệnh thành công (200 OK).`;
+                responseBox.style.color = "green";
+            } else {
+                const errorText = await res.text();
+                responseBox.textContent = `❌ LỖI KẾT NỐI: ${res.status}. ${errorText}`;
+                responseBox.style.color = "red";
+            }
+        } catch (error) {
+            responseBox.textContent = `⚠️ Lỗi: Không thể kết nối với Worker.`;
+            responseBox.style.color = "orange";
+        }
+    }
+
+    // 🔄 Đọc trạng thái hiện tại từ Blynk qua Worker
+    async function getStatus() {
+        const responseBox = document.getElementById("responseBox");
+        responseBox.textContent = `Đang tải trạng thái hiện tại...`;
+        responseBox.style.color = "gray";
+
+        try {
+            const res = await fetch(`${WORKER_URL}?action=get&pin=${VIRTUAL_PIN}`);
+            
+            if (res.ok) {
+                const rawValue = await res.text();
+                const cleanValue = rawValue.replace(/[^0-9]/g, ''); 
+                const state = (cleanValue === '1') ? 1 : 0; 
+                
+                updateUI(state);
+                responseBox.textContent = `✅ Trạng thái thực tế: ${state === 1 ? 'ON' : 'OFF'}`;
+                responseBox.style.color = "darkblue";
+
+            } else {
+                responseBox.textContent = `❌ Lỗi đọc trạng thái: ${res.status}`;
+                responseBox.style.color = "red";
+            }
+        } catch (error) {
+            responseBox.textContent = `⚠️ Lỗi kết nối: Không thể gọi Worker.`;
+            responseBox.style.color = "orange";
+        }
+    }
+
+    // Khởi tạo và Đồng bộ hóa định kỳ
+    document.addEventListener('DOMContentLoaded', () => {
+        getStatus();                 
+        setInterval(getStatus, 10000); 
+
+        document.getElementById("btn").addEventListener('click', toggle);
+        document.getElementById("checkBtn").addEventListener('click', getStatus);
+    });
+    </script>
 </body>
 </html>
 
